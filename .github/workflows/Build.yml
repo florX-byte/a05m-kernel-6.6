@@ -95,7 +95,26 @@ jobs:
           git -C ndkr26 checkout HEAD
           mv ndkr26/toolchains kernel/prebuilts/ndk-r26/
 
-          ls kernel/prebuilts
+          # 6) file BUILD bawaan untuk prebuilts/build-tools (target py_toolchain)
+          git clone --depth 1 --filter=blob:none -n \
+            https://android.googlesource.com/platform/prebuilts/build-tools pbt-build
+          git -C pbt-build sparse-checkout init --cone
+          git -C pbt-build sparse-checkout set /BUILD.bazel /prebuilt_tool.bzl
+          git -C pbt-build checkout HEAD
+          mv pbt-build/BUILD.bazel pbt-build/prebuilt_tool.bzl kernel/prebuilts/build-tools/
+
+          # 7) external/* di root repo (symlink kernel/external/* menunjuk ke sini)
+          mkdir -p external/python
+          for repo in bazel-skylib bazelbuild-rules_cc bazelbuild-rules_license \
+                      bazelbuild-rules_pkg bazelbuild-rules_python bazelbuild-rules_rust \
+                      libcap libcap-ng stardoc zopfli pigz; do
+            git clone --depth 1 --filter=blob:none \
+              "https://android.googlesource.com/platform/external/$repo" "external/$repo"
+          done
+          git clone --depth 1 --filter=blob:none \
+            https://android.googlesource.com/platform/external/python/absl-py external/python/absl-py
+
+          ls external | head -20
 
       - name: Integrar KernelSU-Next
         if: ${{ inputs.root_provider == 'ksu-next-stable' }}
