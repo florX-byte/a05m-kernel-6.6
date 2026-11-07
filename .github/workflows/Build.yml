@@ -133,7 +133,7 @@ jobs:
           ln -sf /usr/bin/rsync kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/rsync
           ln -sf /usr/bin/tar   kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/tar
           printf '#!/bin/sh\nexit 0\n' > kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/cxx_extractor
-          chmod +x kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/{cxx_extractor,rsync,tar}
+          chmod +x kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/cxx_extractor
           ls -R kernel/build/kernel/build-tools
 
           ls external | head -20
