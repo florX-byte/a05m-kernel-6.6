@@ -38,15 +38,64 @@ jobs:
             libncurses-dev python3 python3-pip zip unzip rsync kmod cpio \
             device-tree-compiler default-jdk git curl patch
 
-      - name: Descargar toolchain (con reintentos)
+      - name: Unduh toolchain dari AOSP (mengganti Google Drive)
         run: |
-          pip install gdown
-          for i in 1 2 3; do
-            gdown "https://drive.google.com/uc?id=1um0sIcncTeqVkAE28DwKHlPv1427T5Nb" -O toolchain.tar.gz && break
-            sleep 10
-          done
-          test -s toolchain.tar.gz
-          tar -xf toolchain.tar.gz
+          set -ex
+          # Pin ke commit/tahun yang sama dengan era kernel android15-6.6:
+          #  - clang-r510928 (dir clang-r510928 + kleaf/versions.bzl)
+          CLANG_SHA="513791fb7edceb387ab12b9d29a9ccbe01cae193"
+          #  - bazel 7.4.0 (commit "kleaf: update bazel to 7.4.0")
+          BAZEL_SHA="1b27d511686baf431fb8b084d0c421fb5d056125"
+
+          mkdir -p kernel/prebuilts/clang/host/linux-x86 \
+                   kernel/prebuilts/build-tools \
+                   kernel/prebuilts/kernel-build-tools \
+                   kernel/prebuilts/jdk/jdk11 \
+                   kernel/prebuilts/ndk-r26
+
+          # 1) Clang r510928 + modul kleaf
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-repo
+          git -C clang-repo sparse-checkout init --cone
+          git -C clang-repo sparse-checkout set clang-r510928 kleaf
+          git -C clang-repo fetch --depth=1 origin "$CLANG_SHA"
+          git -C clang-repo checkout FETCH_HEAD
+          mv clang-repo/clang-r510928 clang-repo/kleaf kernel/prebuilts/clang/host/linux-x86/
+
+          # 2) Hermetic python (path/linux-x86 + linux-x86)
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/platform/prebuilts/build-tools pbt
+          git -C pbt sparse-checkout init --cone
+          git -C pbt sparse-checkout set path linux-x86
+          git -C pbt checkout HEAD
+          mv pbt/path pbt/linux-x86 kernel/prebuilts/build-tools/
+
+          # 3) Binary bazel 7.4.0
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/kernel/prebuilts/build-tools kbt
+          git -C kbt sparse-checkout init --cone
+          git -C kbt sparse-checkout set bazel
+          git -C kbt fetch --depth=1 origin "$BAZEL_SHA"
+          git -C kbt checkout FETCH_HEAD
+          mv kbt/bazel kernel/prebuilts/kernel-build-tools/
+
+          # 4) JDK 11 (local_jdk)
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/platform/prebuilts/jdk/jdk11 jdk11
+          git -C jdk11 sparse-checkout init --cone
+          git -C jdk11 sparse-checkout set linux-x86
+          git -C jdk11 checkout HEAD
+          mv jdk11/linux-x86 kernel/prebuilts/jdk/jdk11/
+
+          # 5) Sysroot NDK r26
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/toolchain/prebuilts/ndk/r26 ndkr26
+          git -C ndkr26 sparse-checkout init --cone
+          git -C ndkr26 sparse-checkout set toolchains/llvm/prebuilt/linux-x86_64/sysroot
+          git -C ndkr26 checkout HEAD
+          mv ndkr26/toolchains kernel/prebuilts/ndk-r26/
+
+          ls kernel/prebuilts
 
       - name: Integrar KernelSU-Next
         if: ${{ inputs.root_provider == 'ksu-next-stable' }}
