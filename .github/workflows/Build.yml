@@ -70,14 +70,12 @@ jobs:
           git -C pbt checkout HEAD
           mv pbt/path pbt/linux-x86 kernel/prebuilts/build-tools/
 
-          # 3) Binary bazel 7.4.0
+          # 3) Binary bazel 7.4.0 + linux-x86 + sysroots (checkout full repo)
           git clone --filter=blob:none --no-checkout \
             https://android.googlesource.com/kernel/prebuilts/build-tools kbt
-          git -C kbt sparse-checkout init --cone
-          git -C kbt sparse-checkout set bazel
           git -C kbt fetch --depth=1 origin "$BAZEL_SHA"
           git -C kbt checkout FETCH_HEAD
-          mv kbt/bazel kernel/prebuilts/kernel-build-tools/
+          mv kbt kernel/prebuilts/kernel-build-tools
 
           # 4) JDK 11 (local_jdk)
           git clone --filter=blob:none --no-checkout \
@@ -124,6 +122,16 @@ jobs:
           mv bcr kernel/build/bazel_common_rules
           # stub dir yang dihapus upstream (Aug 2024) tapi masih direferensikan workspace.bzl
           mkdir -p kernel/build/bazel_common_rules/rules/coverage/remote_coverage_tools
+
+          # 9) build-tools (sysroot + kleaf_internal_do_not_use_path) untuk
+          #    package //build/kernel (glob 'build-tools/sysroot/**')
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/kernel/build kbuildd
+          git -C kbuildd fetch --depth=1 origin 76ceabc7a8f8298528c65e31e3a929e2b7f9c8bc
+          git -C kbuildd checkout FETCH_HEAD
+          rm -rf kernel/build/kernel/build-tools
+          mv kbuildd/build-tools kernel/build/kernel/build-tools
+          ls kernel/build/kernel/build-tools
 
           ls external | head -20
 
