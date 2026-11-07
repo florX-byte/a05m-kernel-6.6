@@ -122,15 +122,19 @@ jobs:
           # stub dir yang dihapus upstream (Aug 2024) tapi masih direferensikan workspace.bzl
           mkdir -p kernel/build/bazel_common_rules/rules/coverage/remote_coverage_tools
 
-          # 9) build-tools (sysroot + kleaf_internal_do_not_use_path) untuk
-          #    package //build/kernel (glob 'build-tools/sysroot/**')
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/kernel/build kbuildd
-          git -C kbuildd fetch --depth=1 origin 76ceabc7a8f8298528c65e31e3a929e2b7f9c8bc
-          git -C kbuildd checkout FETCH_HEAD
+          # 9) build-tools dummy (sysroot + kleaf_internal_do_not_use_path) untuk
+          #    package //build/kernel (glob 'build-tools/sysroot/**').
+          #    Di AOSP ini symlink ke prebuilts lain yang tidak kita klon;
+          #    placeholder cukup untuk melewati loading phase Bazel.
           rm -rf kernel/build/kernel/build-tools
-          mv kbuildd/build-tools kernel/build/kernel/build-tools
-          ls kernel/build/kernel/build-tools
+          mkdir -p kernel/build/kernel/build-tools/sysroot \
+                   kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86
+          touch kernel/build/kernel/build-tools/sysroot/.placeholder
+          ln -sf /usr/bin/rsync kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/rsync
+          ln -sf /usr/bin/tar   kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/tar
+          printf '#!/bin/sh\nexit 0\n' > kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/cxx_extractor
+          chmod +x kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/{cxx_extractor,rsync,tar}
+          ls -R kernel/build/kernel/build-tools
 
           ls external | head -20
 
