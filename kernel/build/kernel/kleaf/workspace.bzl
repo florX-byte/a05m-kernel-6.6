@@ -190,6 +190,14 @@ WARNING: define_kleaf_workspace() should be called with common_kernel_package={}
         path = "external/bazelbuild-rules_python",
     )
 
+    # rules_python 1.x requires @rules_python_internal repo (used by py_runtime_pair).
+    # Register it as a local repo with generated config (replicates internal_config_repo).
+    new_kleaf_local_repository(
+        name = "rules_python_internal",
+        path = "build/kernel/kleaf/rules_python_internal",
+        build_file = "build/kernel/kleaf/rules_python_internal/BUILD",
+    )
+
     # The following 2 repositories contain prebuilts that are necessary to the Java Rules.
     # They are vendored locally to avoid the need for CI bots to download them.
     if include_remote_java_tools_repo:
