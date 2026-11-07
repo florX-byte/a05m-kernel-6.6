@@ -96,12 +96,12 @@ jobs:
           mv ndkr26/toolchains kernel/prebuilts/ndk-r26/
 
           # 6) file BUILD bawaan untuk prebuilts/build-tools (target py_toolchain)
-          git clone --depth 1 --filter=blob:none -n \
-            https://android.googlesource.com/platform/prebuilts/build-tools pbt-build
-          git -C pbt-build sparse-checkout init --cone
-          git -C pbt-build sparse-checkout set /BUILD.bazel /prebuilt_tool.bzl
-          git -C pbt-build checkout HEAD
-          mv pbt-build/BUILD.bazel pbt-build/prebuilt_tool.bzl kernel/prebuilts/build-tools/
+          curl -s "https://android.googlesource.com/platform/prebuilts/build-tools/+/main/BUILD.bazel?format=TEXT" \
+            | base64 -d > kernel/prebuilts/build-tools/BUILD.bazel
+          curl -s "https://android.googlesource.com/platform/prebuilts/build-tools/+/main/prebuilt_tool.bzl?format=TEXT" \
+            | base64 -d > kernel/prebuilts/build-tools/prebuilt_tool.bzl
+          test -s kernel/prebuilts/build-tools/BUILD.bazel
+          test -s kernel/prebuilts/build-tools/prebuilt_tool.bzl
 
           # 7) external/* di root repo (symlink kernel/external/* menunjuk ke sini)
           mkdir -p external/python
