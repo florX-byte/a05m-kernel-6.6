@@ -114,6 +114,16 @@ jobs:
           git clone --depth 1 --filter=blob:none \
             https://android.googlesource.com/platform/external/python/absl-py external/python/absl-py
 
+          # 8) build/bazel_common_rules (dist.bzl, dst.) - pin era Okt 2024
+          git clone --filter=blob:none --no-checkout \
+            https://android.googlesource.com/platform/build/bazel_common_rules bcr
+          git -C bcr fetch --depth=1 origin f945347a65dbae0cb23a730c1e5bd82fe7c23262
+          git -C bcr checkout FETCH_HEAD
+          rm -rf kernel/build/bazel_common_rules
+          mv bcr kernel/build/bazel_common_rules
+          # stub dir yang dihapus upstream (Aug 2024) tapi masih direferensikan workspace.bzl
+          mkdir -p kernel/build/bazel_common_rules/rules/coverage/remote_coverage_tools
+
           ls external | head -20
 
       - name: Integrar KernelSU-Next
