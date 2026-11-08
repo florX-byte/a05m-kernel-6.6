@@ -38,105 +38,16 @@ jobs:
             libncurses-dev python3 python3-pip zip unzip rsync kmod cpio \
             device-tree-compiler default-jdk git curl patch
 
-      - name: Unduh toolchain dari AOSP (mengganti Google Drive)
+      - name: Descargar toolchain (Google Drive - Samsung OSS)
         run: |
-          set -ex
-          # Pin ke commit/tahun yang sama dengan era kernel android15-6.6:
-          #  - clang-r510928 (dir clang-r510928 + kleaf/versions.bzl)
-          CLANG_SHA="513791fb7edceb387ab12b9d29a9ccbe01cae193"
-          #  - bazel 7.4.0 (commit "kleaf: update bazel to 7.4.0")
-          BAZEL_SHA="1b27d511686baf431fb8b084d0c421fb5d056125"
-
-          mkdir -p kernel/prebuilts/clang/host/linux-x86 \
-                   kernel/prebuilts/build-tools \
-                   kernel/prebuilts/jdk/jdk11 \
-                   kernel/prebuilts/ndk-r26
-
-          # 1) Clang r510928 + modul kleaf
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 clang-repo
-          git -C clang-repo sparse-checkout init --cone
-          git -C clang-repo sparse-checkout set clang-r510928 kleaf
-          git -C clang-repo fetch --depth=1 origin "$CLANG_SHA"
-          git -C clang-repo checkout FETCH_HEAD
-          mv clang-repo/clang-r510928 clang-repo/kleaf kernel/prebuilts/clang/host/linux-x86/
-
-          # 2) Hermetic python (path/linux-x86 + linux-x86)
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/platform/prebuilts/build-tools pbt
-          git -C pbt sparse-checkout init --cone
-          git -C pbt sparse-checkout set path linux-x86
-          git -C pbt checkout HEAD
-          mv pbt/path pbt/linux-x86 kernel/prebuilts/build-tools/
-
-          # 3) Binary bazel 7.4.0 + linux-x86 + sysroots (checkout full repo)
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/kernel/prebuilts/build-tools kbt
-          git -C kbt fetch --depth=1 origin "$BAZEL_SHA"
-          git -C kbt checkout FETCH_HEAD
-          mv kbt kernel/prebuilts/kernel-build-tools
-
-          # 4) JDK 11 (local_jdk)
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/platform/prebuilts/jdk/jdk11 jdk11
-          git -C jdk11 sparse-checkout init --cone
-          git -C jdk11 sparse-checkout set linux-x86
-          git -C jdk11 checkout HEAD
-          mv jdk11/linux-x86 kernel/prebuilts/jdk/jdk11/
-
-          # 5) Sysroot NDK r26
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/toolchain/prebuilts/ndk/r26 ndkr26
-          git -C ndkr26 sparse-checkout init --cone
-          git -C ndkr26 sparse-checkout set toolchains/llvm/prebuilt/linux-x86_64/sysroot
-          git -C ndkr26 checkout HEAD
-          mv ndkr26/toolchains kernel/prebuilts/ndk-r26/
-
-          # 6) file BUILD bawaan untuk prebuilts/build-tools (target py_toolchain)
-          curl -s "https://android.googlesource.com/platform/prebuilts/build-tools/+/main/BUILD.bazel?format=TEXT" \
-            | base64 -d > kernel/prebuilts/build-tools/BUILD.bazel
-          curl -s "https://android.googlesource.com/platform/prebuilts/build-tools/+/main/prebuilt_tool.bzl?format=TEXT" \
-            | base64 -d > kernel/prebuilts/build-tools/prebuilt_tool.bzl
-          test -s kernel/prebuilts/build-tools/BUILD.bazel
-          test -s kernel/prebuilts/build-tools/prebuilt_tool.bzl
-
-          # 7) external/* di root repo (symlink kernel/external/* menunjuk ke sini)
-          mkdir -p external/python
-          for repo in bazel-skylib bazelbuild-rules_cc bazelbuild-rules_license \
-                      bazelbuild-rules_pkg bazelbuild-rules_python bazelbuild-rules_rust \
-                      libcap libcap-ng stardoc zopfli pigz; do
-            git clone --depth 1 --filter=blob:none \
-              "https://android.googlesource.com/platform/external/$repo" "external/$repo"
+          pip install gdown
+          for i in 1 2 3; do
+            gdown "https://drive.google.com/uc?id=1vsQfRgdNHlD0md9tF7j5fpkL_17whzbH" -O toolchain.tar.gz && break
+            sleep 15
           done
-          git clone --depth 1 --filter=blob:none \
-            https://android.googlesource.com/platform/external/python/absl-py external/python/absl-py
-
-          # 8) build/bazel_common_rules (dist.bzl, dst.) - pin era Agus 2024
-          #    (commit Okt 2024 menghapus symbol exec_rule yang dibutuhkan kleaf)
-          git clone --filter=blob:none --no-checkout \
-            https://android.googlesource.com/platform/build/bazel_common_rules bcr
-          git -C bcr fetch --depth=1 origin 55ac6363248f4401ba13a0b2046bf33e04c2d9a6
-          git -C bcr checkout FETCH_HEAD
-          rm -rf kernel/build/bazel_common_rules
-          mv bcr kernel/build/bazel_common_rules
-          # stub dir yang dihapus upstream (Aug 2024) tapi masih direferensikan workspace.bzl
-          mkdir -p kernel/build/bazel_common_rules/rules/coverage/remote_coverage_tools
-
-          # 9) build-tools dummy (sysroot + kleaf_internal_do_not_use_path) untuk
-          #    package //build/kernel (glob 'build-tools/sysroot/**').
-          #    Di AOSP ini symlink ke prebuilts lain yang tidak kita klon;
-          #    placeholder cukup untuk melewati loading phase Bazel.
-          rm -rf kernel/build/kernel/build-tools
-          mkdir -p kernel/build/kernel/build-tools/sysroot \
-                   kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86
-          touch kernel/build/kernel/build-tools/sysroot/.placeholder
-          ln -sf /usr/bin/rsync kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/rsync
-          ln -sf /usr/bin/tar   kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/tar
-          printf '#!/bin/sh\nexit 0\n' > kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/cxx_extractor
-          chmod +x kernel/build/kernel/build-tools/kleaf_internal_do_not_use_path/linux-x86/cxx_extractor
-          ls -R kernel/build/kernel/build-tools
-
-          ls external | head -20
+          test -s toolchain.tar.gz
+          tar -xf toolchain.tar.gz
+          rm toolchain.tar.gz
 
       - name: Integrar KernelSU-Next
         if: ${{ inputs.root_provider == 'ksu-next-stable' }}
